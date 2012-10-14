@@ -28,7 +28,7 @@ function check_categories(downloaded_issues) {
     return error_count;
 }
 
-var result = irc.client(config.irc_server, config.irc_nickname, config.irc_options, function(from, to, message){
+var client = irc.client(config.irc_server, config.irc_nickname, config.irc_options, function(from, to, message){
     util.log(from + " to " + to + ": " + message);
 });
 

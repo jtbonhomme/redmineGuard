@@ -16,12 +16,13 @@ exports.client = function(server, nickname, options, msg_callback) {
     var client = new irc.Client(server, nickname, options);
 
     // Check client is created
-    if( !client ) {
-    	return(-1);
+    if( client ) {
+        // Listen for messages from irc server
+        client.addListener('message', function (from, to, message) {
+            // add code to handle messages
+            msg_callback(from, to, message);
+        });
+
+        return client;
     }
-    // Listen for messages from irc server
-    client.addListener('message', function (from, to, message) {
-        // add code to handle messages
-        msg_callback(from, to, message);
-    });
-}
+};

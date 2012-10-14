@@ -7,6 +7,8 @@
     "name": "jtbonhomme"
   },
   "devDependencies": {
-    "irc" : "*"
+    "irc" : "*",
+    "grunt-box": "git+ssh://git@github.com/canalplus/grunt-box.git",
+    "grunt-contrib" : "*"
   }
 }

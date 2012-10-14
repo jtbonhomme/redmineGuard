@@ -8,7 +8,7 @@
  * @param {function} errorcallback The errorcallback function called when the request fails. Used with request as parameter.
  */
 
-var XMLHttpRequest = require("./XMLHttpRequest.js").XMLHttpRequest;
+var XMLHttpRequest = require("./lib/XMLHttpRequest.js").XMLHttpRequest;
 
 exports.ajax = function(url, key, callback, errorcallback) {
     var xhr = new XMLHttpRequest();
@@ -37,5 +37,5 @@ exports.ajax = function(url, key, callback, errorcallback) {
     xhr.setRequestHeader("X-Redmine-API-Key",key);
     // Send request
     xhr.send();
-}
+};
 
