@@ -13,6 +13,11 @@ Installation
 
 <code>npm install</code>
 
+Run
+---
+
+<code>node core/main.js</code>
+
 Use it
 ------
 
