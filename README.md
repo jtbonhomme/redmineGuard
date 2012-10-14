@@ -12,3 +12,8 @@ Installation
 ------------
 
 <code>npm install</code>
+
+Use it
+------
+
+See [node-irc documentation](https://node-irc.readthedocs.org/en/latest/API.html) for list of irc client API.
