@@ -1,20 +1,18 @@
-var msg = require('sys');
+
+// Import dependencies
 var irc = require('irc');
-var client = new irc.Client('irc.wyplay.net', 'r7bot', {
-    channels: ['#r7_redmine'],
-    secure: true,
-    selfSigned: true,
-    certExpired: true,
-    debug: true
-});
+var config = require('./config.js');
 
-console.log("start");
+// Create irc client object (also perform 'join')
+var client = new irc.Client(config.server, config.nickname, config.options);
 
+// Check client is created
 if( !client ) {
 	console.log("[ERROR] irc client has not been created, exit.")
-	return(-1);
+	process.exit(1);
 }
 
+// Listen for messages from irc server
 client.addListener('message', function (from, to, message) {
     console.log(from + ' => ' + to + ': ' + message);
 });
@@ -31,6 +29,3 @@ client.addListener('registered', function (message) {
 client.addListener('join', function (channel, nick, message) {
     console.log(nick + ' joined ' + channel + ' => ME: ' + message);
 });
-
-console.log("This is the end");
-return(0);
