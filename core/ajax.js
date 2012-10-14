@@ -32,7 +32,7 @@ exports.ajax = function(url, key, callback, errorcallback) {
         }
     };
     // open Ajax connexion
-    xhr.open("GET", url);
+    xhr.open("GET", url, true);
     // include header with secret redmine API KEY
     xhr.setRequestHeader("X-Redmine-API-Key",key);
     // Send request
