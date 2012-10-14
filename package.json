@@ -1,0 +1,12 @@
+{
+  "name": "remine-checker",
+  "private": false,
+  "description": "Check REDMINE issues and post alerts on IRC",
+  "version": "0.0.1",
+  "author": {
+    "name": "jtbonhomme"
+  },
+  "devDependencies": {
+    "irc" : "*"
+  }
+}
