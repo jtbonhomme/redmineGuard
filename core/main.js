@@ -8,6 +8,7 @@ var util = require('util');
 var config = require('./config.js');
 var xhr = require('./ajax.js');
 var irc = require('./irc.js');
+var hash_issues = [];
 
 function update_log(filename, message) {
 
@@ -44,7 +45,7 @@ function check_categories(downloaded_issues) {
             if( typeof downloaded_issues.issues[i].category === "undefined" ) {
                 //util.log("[Main.js] ISSUE #" + downloaded_issues.issues[i].id+ " categories is empty");
                 util.log( "Issue #" + downloaded_issues.issues[i].id +
-                            " does not have a valid CATEGORY field ("+ config.redmine_url +
+                            " does not have a valid CATEGORY field ("+ config.redmine_url + "issues/" +
                             downloaded_issues.issues[i].id + ")");
                 error_count++;
             }
@@ -72,7 +73,7 @@ function check_task_parent(downloaded_issues) {
                 ( downloaded_issues.issues[i].tracker.name === "Task" ) )  {
                 //util.log("[Main.js] ISSUE #" + downloaded_issues.issues[i].id+ " categories is empty");
                 util.log( "Issue #" + downloaded_issues.issues[i].id +
-                            " is a Task and does not have a valid PARENT field ("+ config.redmine_url +
+                            " is a Task and does not have a valid PARENT field ("+ config.redmine_url + "issues/" +
                             downloaded_issues.issues[i].id + ")");
                 error_count++;
             }
@@ -84,7 +85,38 @@ function check_task_parent(downloaded_issues) {
     return error_count;
 }
 
-var hash_issues = [];
+// check_categories
+function check_parents_category(downloaded_issues) {
+    var i;
+    var error_count = 0;
+    var error_label = "";
+    if( !downloaded_issues ) {
+        util.log("[ERROR] [Main.js] No issue were downloaded ...");
+        process.exit(1);
+    }
+    for(i=0; i < downloaded_issues.total_count; i++) {
+        if( typeof downloaded_issues.issues[i] !== "undefined" ) {
+            // check if tasks have a parent (no orphelin tasks that will not be tracked in Redmine)
+            if( (typeof downloaded_issues.issues[i].parent !== "undefined") &&
+                (typeof downloaded_issues.issues[i].category !== "undefined") ) {
+                var parent_id = downloaded_issues.issues[i].parent.id;
+                if( hash_issues[parent_id].category_name !== "none" ) {
+                    if( hash_issues[parent_id].category_name !== downloaded_issues.issues[i].category.name ) {
+                        util.log( "Issue #" + downloaded_issues.issues[i].id +
+                                    " has not the same CATEGORY ("+downloaded_issues.issues[i].category.name+") than its PARENT:"+hash_issues[parent_id].category_name+" ("+ config.redmine_url + "issues/" +
+                                    downloaded_issues.issues[i].id + ")");
+                        error_count++;
+                    }
+                }
+            }
+        }
+    }
+    error_label = "[PARENT CATEGORY CHECKING] There are : " + error_count + " malformed issue(s) over " + i + " issues parsed";
+    //util.log("[Main.js] " + error_label);
+    irc_client.say(config.irc_options.channels[0], error_label);
+    return error_count;
+}
+
 
 function parse_issues(hash_to_fill, issues_to_parse) {
     var i;
@@ -92,7 +124,7 @@ function parse_issues(hash_to_fill, issues_to_parse) {
         hash_to_fill[issues_to_parse.issues[i].id]={
             "tracker_name": issues_to_parse.issues[i].tracker.name,
             "parent_id": ((typeof issues_to_parse.issues[i].parent === "undefined") ? "none" : issues_to_parse.issues[i].parent.id),
-            "category": ((typeof issues_to_parse.issues[i].category === "undefined") ? "none" : issues_to_parse.issues[i].category.name)
+            "category_name": ((typeof issues_to_parse.issues[i].category === "undefined") ? "none" : issues_to_parse.issues[i].category.name)
         };
         //console.log("#"+issues_to_parse.issues[i].id+" "+issues_to_parse.issues[i].tracker.name + " category " + hash_to_fill[issues_to_parse.issues[i].id].category + " parent " + hash_to_fill[issues_to_parse.issues[i].id].parent_id);
    }
@@ -124,6 +156,7 @@ function perform_tests(downloaded_issues){
     // pass tests
     error_count += check_categories(downloaded_issues);
     error_count += check_task_parent(downloaded_issues);
+    error_count += check_parents_category(downloaded_issues);
 
     process.exit(error_count);
 }
