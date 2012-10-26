@@ -16,7 +16,11 @@ Installation
 Run
 ---
 
-<code>node core/main.js</code>
+<code>node core/check.js</code>
+
+or
+
+<code>node core/report.js</code>
 
 Use it
 ------

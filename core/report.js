@@ -1,5 +1,5 @@
 /**
- * main.js - Entry point of the RemineGuard application
+ * report.js - Entry point of the RemineGuard application for weekly reporting
  */
 
 
@@ -7,8 +7,7 @@
 var util = require('util');
 var config = require('./config.js');
 var xhr = require('./ajax.js');
-var irc = require('./irc.js');
-var hash_issues = [];
+
 
 function update_log(filename, message) {
 
@@ -25,11 +24,6 @@ function update_log(filename, message) {
   stream.write(message + ": ", 'utf8');
   stream.end();
 }
-
-// connect to irc server
-var irc_client = irc.client(config.irc_server, config.irc_nickname, config.irc_options, function(from, to, message){
-    util.log(from + " to " + to + ": " + message);
-});
 
 // check_categories
 function check_categories(downloaded_issues) {
@@ -53,7 +47,6 @@ function check_categories(downloaded_issues) {
     }
     error_label = "[CATEGORY CHECKING] There are : " + error_count + " malformed issue(s) over " + i + " issues parsed";
     //util.log("[Main.js] " + error_label);
-    irc_client.say(config.irc_options.channels[0], error_label);
     return error_count;
 }
 
@@ -81,11 +74,11 @@ function check_task_parent(downloaded_issues) {
     }
     error_label = "[TASK PARENT CHECKING] There are : " + error_count + " malformed issue(s) over " + i + " issues parsed";
     //util.log("[Main.js] " + error_label);
-    irc_client.say(config.irc_options.channels[0], error_label);
     return error_count;
 }
 
 // check_categories
+/*
 function check_parents_category(downloaded_issues) {
     var i;
     var error_count = 0;
@@ -113,20 +106,29 @@ function check_parents_category(downloaded_issues) {
     }
     error_label = "[PARENT CATEGORY CHECKING] There are : " + error_count + " malformed issue(s) over " + i + " issues parsed";
     //util.log("[Main.js] " + error_label);
-    irc_client.say(config.irc_options.channels[0], error_label);
     return error_count;
 }
+*/
 
-
-function parse_issues(hash_to_fill, issues_to_parse) {
+function parse_issues(issue_db, issues_to_parse) {
     var i;
+    // parse a first time to get all stories
     for(i=0; i < issues_to_parse.issues.length; i++) {
-        hash_to_fill[issues_to_parse.issues[i].id]={
-            "tracker_name": issues_to_parse.issues[i].tracker.name,
-            "parent_id": ((typeof issues_to_parse.issues[i].parent === "undefined") ? "none" : issues_to_parse.issues[i].parent.id),
-            "category_name": ((typeof issues_to_parse.issues[i].category === "undefined") ? "none" : issues_to_parse.issues[i].category.name)
-        };
-        //console.log("#"+issues_to_parse.issues[i].id+" "+issues_to_parse.issues[i].tracker.name + " category " + hash_to_fill[issues_to_parse.issues[i].id].category + " parent " + hash_to_fill[issues_to_parse.issues[i].id].parent_id);
+        if( (issues_to_parse.issues[i].tracker.name === "User Story") ||
+            (issues_to_parse.issues[i].tracker.name === "Technical Story") ||
+            (issues_to_parse.issues[i].tracker.name === "Spike") ||
+            (issues_to_parse.issues[i].tracker.name === "Defect")) {
+            issue_db.stories.push( { 
+                "id": issues_to_parse.issues[i].id,
+                "tracker_name": issues_to_parse.issues[i].tracker.name,
+                "subject": issues_to_parse.issues[i].subject,
+                "author": issues_to_parse.issues[i].author,
+                "author": issues_to_parse.issues[i].author,
+                "assigned_to": ((typeof issues_to_parse.issues[i].assigned_to === "undefined") ? "none" : issues_to_parse.issues[i].assigned_to.name),
+        }
+        issues_to_parse.issues[i].id =
+            "fixed_version_name": ((typeof issues_to_parse.issues[i].fixed_version === "undefined") ? "none" : issues_to_parse.issues[i].fixed_version.name)
+        console.log("#"+issues_to_parse.issues[i].id+" "+issues_to_parse.issues[i].tracker.name + " category " + );
    }
 }
 
@@ -136,7 +138,6 @@ function download_all_issues(url, offset, key, all_issues, success, error) {
     this.key=key;
     util.print(".");
     xhr.ajax(this.url +"&offset=" + this.offset, this.key, function(data) {
-        parse_issues(hash_issues, data);
         all_issues.total_count = data.total_count;
         all_issues.issues = all_issues.issues.concat(data.issues);
         var next_offset = all_issues.issues.length;
@@ -150,22 +151,67 @@ function download_all_issues(url, offset, key, all_issues, success, error) {
     }, function(err) { error(err); });
 }
 
-function perform_tests(downloaded_issues){
-    var error_count=0;
+function dateFormat (date, fstr, utc) {
+  utc = utc ? 'getUTC' : 'get';
+  return fstr.replace (/%[YmdHMS]/g, function (m) {
+    switch (m) {
+    case '%Y': return date[utc + 'FullYear'] (); // no leading zeros required
+    case '%m': m = 1 + date[utc + 'Month'] (); break;
+    case '%d': m = date[utc + 'Date'] (); break;
+    case '%H': m = date[utc + 'Hours'] (); break;
+    case '%M': m = date[utc + 'Minutes'] (); break;
+    case '%S': m = date[utc + 'Seconds'] (); break;
+    default: return m.slice (1); // unknown code, remove %
+    }
+    // add leading zero if required
+    return ('0' + m).slice (-2);
+  });
+}
 
-    // pass tests
-    error_count += check_categories(downloaded_issues);
-    error_count += check_task_parent(downloaded_issues);
-    error_count += check_parents_category(downloaded_issues);
+/*
+ issue_db: {
+    "creation_date":string,
+    "versions" : [
+    {
+        "version": string,
+        "stories": [
+        {
+            "id": number,
+            "tracker_name": string,
+            "subject": string,
+            "status":string,
+            "author":string,
+            "assigned_to":string,
+            "tasks": [
+                "task_id":number,
+                "assigned_to":string,
+                "status": string,
+                "subject": string,
+                "estimated_time":number,
+                "to_do":number
+            ]
+        }]
+    }]
+ }
+ */
 
-    process.exit(error_count);
+function report(downloaded_issues) {
+    var issue_db = {
+         "creation_date":"",
+        "stories": []
+    };
+    //  "2012-05-18 05:37:21"
+    issue_db.creation_date = dateFormat (new Date (), "%Y-%m-%d %H:%M:%S", true);
+
+    // get all issues and store in json db object
+    parse_issues(issue_db, downloaded_issues);
 }
 
 var issues = {total_count: -1, issues: []};
 var base_url = config.redmine_url + 'issues.json?limit=100&project_id=' + config.redmine_project;
 
 // launch all issues downloading
-download_all_issues(base_url, 0, config.redmine_key, issues, perform_tests, function(err){
+download_all_issues(base_url, 0, config.redmine_key, issues, report, function(err){
     util.log("[ERROR] [main.js] " + err);
     process.exit(1);
 });
