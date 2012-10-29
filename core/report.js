@@ -5,65 +5,98 @@
 
 // Import dependencies
 var util = require('util');
-var config = require('./config.js');
-var xhr = require('./ajax.js');
 var fs = require('fs');
+var backlog_report = {
+    "stories":[ {
+        "story":{},
+        "tasks":[]
+    }],
+    "versions": [],
+    "motherless_tasks": []
+};
 
-function download_all_issues(url, offset, key, all_issues, success, error) {
-    this.url=url;
-    this.offset = offset;
-    this.key=key;
-    util.print(".");
-    xhr.ajax(this.url +"&offset=" + this.offset, this.key, function(data) {
-        all_issues.total_count = data.total_count;
-        all_issues.issues = all_issues.issues.concat(data.issues);
-        var next_offset = all_issues.issues.length;
-        if (all_issues.issues.length < all_issues.total_count) {
-            download_all_issues(this.url, next_offset, this.key, all_issues, success, error);
+function getVersionsAndStories(all_issues){
+    var i;
+    // parse all issues
+    for(i=0; i<all_issues.total_count; i++) {
+        // if issue is a "story" "spike" or "defect"
+        if( all_issues.issues[i].tracker.name === "User Story" ||
+            all_issues.issues[i].tracker.name === "Technical Story" ||
+            all_issues.issues[i].tracker.name === "Defect" ||
+            all_issues.issues[i].tracker.name === "Spike") {
+            // store it
+            backlog_report.stories[all_issues.issues[i].id] = { story:all_issues.issues[i], tasks:[] };
+            //console.log("Story #"+backlog_report.stories[all_issues.issues[i].id].story.id+" is stored");
         }
-        else {
-            util.print("\n");
-            success(all_issues);
+        // if this issue has a version that has never been recorded, add it to an array
+        if( typeof all_issues.issues[i].fixed_version !== "undefined" ) {
+            if (backlog_report.versions.indexOf( all_issues.issues[i].fixed_version.name ) == -1 ) {
+                backlog_report.versions.push(all_issues.issues[i].fixed_version.name);
+            }
         }
-    }, function(err) { error(err); });
-}
-
-function dateFormat (date, fstr, utc) {
-  utc = utc ? 'getUTC' : 'get';
-  return fstr.replace (/%[YmdHMS]/g, function (m) {
-    switch (m) {
-    case '%Y': return date[utc + 'FullYear'] (); // no leading zeros required
-    case '%m': m = 1 + date[utc + 'Month'] (); break;
-    case '%d': m = date[utc + 'Date'] (); break;
-    case '%H': m = date[utc + 'Hours'] (); break;
-    case '%M': m = date[utc + 'Minutes'] (); break;
-    case '%S': m = date[utc + 'Seconds'] (); break;
-    default: return m.slice (1); // unknown code, remove %
     }
-    // add leading zero if required
-    return ('0' + m).slice (-2);
-  });
 }
 
-function report(downloaded_issues) {
-    //  "2012-05-18_05h37m21"
-    var creation_date = dateFormat (new Date (), "%Y-%m-%d_%Hh%Mm%S", true);
-    var outputFilename = './'+creation_date+'_issues.json';
+function getTasks(all_issues){
+    var i;
+    // parse all issues
+    for(i=0; i<all_issues.total_count; i++) {
+        // if issue is a "task"
+        if( all_issues.issues[i].tracker.name === "Task") {
+            // store it in its parent's story if it exists
+            if( typeof all_issues.issues[i].parent != "undefined") {
+                // Optimistic mode: assume that all story already have been recorded
+                if( typeof backlog_report.stories[all_issues.issues[i].parent.id] !== "undefined" ) {
+                    //console.log("Parent of task #"+all_issues.issues[i].id+" is story #"+all_issues.issues[i].parent.id+" SUBJECT: "+ backlog_report.stories[all_issues.issues[i].parent.id].story.subject);
+                    backlog_report.stories[all_issues.issues[i].parent.id].tasks.push(all_issues.issues[i]);
+                }
+                else {
+                    //console.log("Parent of task #"+all_issues.issues[i].id+" is story #"+all_issues.issues[i].parent.id+" ** UNDEFINED ** ");
+                    backlog_report.motherless_tasks.push(all_issues.issues[i]);
+                }
 
-    fs.writeFile(outputFilename, JSON.stringify(downloaded_issues, null, 4), function(err) {
-        if(err) {
-          console.log(err);
-        } else {
-          console.log("JSON saved to "+outputFilename);
+            }
+            else {
+                // no parent task found
+                //console.log("Task #"+all_issues.issues[i].id+" has no parent !");
+                backlog_report.motherless_tasks.push(all_issues.issues[i]);
+            }
         }
+    }
+}
+
+function report(all_issues) {
+    getVersionsAndStories(all_issues);
+    getTasks(all_issues);
+
+
+    // test
+    var i;
+    for( i=0; i<backlog_report.versions.length; i++ ) {
+        console.log("["+i+"] report: versions: " + backlog_report.versions[i]);
+    }
+
+    backlog_report.stories.forEach(function(element, index){
+        console.log("["+index+"] report: stories: #" + element.story.id + " : " + element.story.subject);
+        element.tasks.forEach(function(element, index){
+            console.log("\t> report: tasks: #" + element.id + " : " + element.subject);
+        });
     });
 }
 
-var issues = {total_count: -1, issues: []};
-var base_url = config.redmine_url + 'issues.json?limit=100&status_id=*&project_id=' + config.redmine_project;
+function open_file(filename, downloaded_issues, callback) {
+    console.log("Open "+ filename);
+    fs.readFile(filename, function (err, data) {
+        if (err) {
+            console.log("ERROR ");
+            throw err;
+        }
+        downloaded_issues = JSON.parse(data);
+        callback(downloaded_issues);
+    });
+}
+
+var issues = {};
 
 // launch all issues downloading
-download_all_issues(base_url, 0, config.redmine_key, issues, report, function(err){
-    util.log("[ERROR] [main.js] " + err);
-    process.exit(1);
-});
+open_file("2012-10-26_16h13m07_issues.json", issues, report);
