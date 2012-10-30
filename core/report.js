@@ -19,6 +19,12 @@ var backlog_report = {
         "webapp": 0,
         "mw": 0
     },
+    "opened_tasks": {
+        "restapi": 0,
+        "testapp": 0,
+        "webapp": 0,
+        "mw": 0
+    },
     "closed_tasks": {
         "restapi": 0,
         "testapp": 0,
@@ -72,7 +78,6 @@ function getTasks(all_issues, version){
                     //console.log("Parent of task #"+all_issues.issues[i].id+" is story #"+all_issues.issues[i].parent.id+" ** UNDEFINED ** ");
                     backlog_report.motherless_tasks.push(all_issues.issues[i]);
                 }
-
             }
             else {
                 // no parent task found
@@ -92,7 +97,10 @@ function getTasks(all_issues, version){
             // {"name":"Done","id":5,"is_closed":true},
             // {"name":"Terminated","id":9,"is_closed":true}]}
 
+
             if( typeof all_issues.issues[i].assigned_to !== "undefined" ) {
+
+                // COMPUTE TOTAL NUMBER OF TASKS FOR ALL VERSIONS
                 switch( all_issues.issues[i].assigned_to.name ) {
                     case "WEBAPP":
                         backlog_report.total_tasks.webapp += 1;
@@ -107,31 +115,32 @@ function getTasks(all_issues, version){
                         backlog_report.total_tasks.mw += 1;
                         break;
                 }
+
                 if( typeof all_issues.issues[i].fixed_version !== "undefined") {
                     if( all_issues.issues[i].status.id != 5 &&
                         all_issues.issues[i].status.id != 9 &&
                         all_issues.issues[i].fixed_version.name === version) {
                         switch( all_issues.issues[i].assigned_to.name ){
                             case "WEBAPP":
-                                backlog_report.remaining_time_track.webapp += all_issues.issues[i].estimated_hours;
+                                backlog_report.opened_tasks.webapp += 1;
                                 if( typeof all_issues.issues[i].estimated_hours !== "undefined" ) {
                                     backlog_report.remaining_time_track.webapp += all_issues.issues[i].estimated_hours;
                                 }
                                 break;
                             case "API REST":
-                                backlog_report.remaining_time_track.restapi += all_issues.issues[i].estimated_hours;
+                                backlog_report.opened_tasks.restapi += 1;
                                 if( typeof all_issues.issues[i].estimated_hours !== "undefined" ) {
                                     backlog_report.remaining_time_track.restapi += all_issues.issues[i].estimated_hours;
                                 }
                                 break;
                             case "TESTAPP":
-                                backlog_report.remaining_time_track.testapp += all_issues.issues[i].estimated_hours;
+                                backlog_report.opened_tasks.testapp += 1;
                                 if( typeof all_issues.issues[i].estimated_hours !== "undefined" ) {
                                     backlog_report.remaining_time_track.testapp += all_issues.issues[i].estimated_hours;
                                 }
                                 break;
                             default:
-                                backlog_report.remaining_time_track.mw += all_issues.issues[i].estimated_hours;
+                                backlog_report.opened_tasks.mw += 1;
                                 if( typeof all_issues.issues[i].estimated_hours !== "undefined" ) {
                                     backlog_report.remaining_time_track.mw += all_issues.issues[i].estimated_hours;
                                 }
@@ -143,31 +152,34 @@ function getTasks(all_issues, version){
                              ( all_issues.issues[i].fixed_version.name === version ) ) {
                         switch( all_issues.issues[i].assigned_to.name ){
                             case "WEBAPP":
-                                backlog_report.closed_tasks.webapp += all_issues.issues[i].estimated_hours;
+                                backlog_report.closed_tasks.webapp += 1;
                                 break;
                             case "API REST":
-                                backlog_report.closed_tasks.restapi += all_issues.issues[i].estimated_hours;
+                                backlog_report.closed_tasks.restapi += 1;
                                 break;
                             case "TESTAPP":
-                                backlog_report.closed_tasks.testapp += all_issues.issues[i].estimated_hours;
+                                backlog_report.closed_tasks.testapp += 1;
                                 break;
                             default:
-                                backlog_report.closed_tasks.mw += all_issues.issues[i].estimated_hours;
+                                backlog_report.closed_tasks.mw += 1;
                                 break;
                         }
                     }
  
                 }
             } // end if assigned_to is not undefined
-        }
-    }
+            else {
+                // if assigned is not identified, we consider it is a MW task
+                backlog_report.total_tasks.mw += 1;
+            }
+        } // end if issue is a task
+    } // end for all_issues
 }
 
 function report(all_issues, version) {
     getVersionsAndStories(all_issues);
     getTasks(all_issues, version);
 
-    console.log("REPORT FOR VERSION "+version);
     // test
     var i;
 /*    for( i=0; i<backlog_report.versions.length; i++ ) {
@@ -181,27 +193,41 @@ function report(all_issues, version) {
         });
     });
 */
-    console.log("Estimated remaining time for :");
+
+    console.log("\n\n------------------------------------");
+    console.log(" FOR THE TARGETED SPRINT OR VERSION");
+    console.log("------------------------------------");
+
+    console.log("\nEstimated remaining time for this version :");
     console.log("- WEBAPP is " + backlog_report.remaining_time_track.webapp + " hours" );
     console.log("- API REST is " + backlog_report.remaining_time_track.restapi + " hours" );
     console.log("- TESTAPP is " + backlog_report.remaining_time_track.testapp + " hours" );
     console.log("- MIDDLEWARE is " + backlog_report.remaining_time_track.mw + " hours" );
 
-    console.log("Total tasks for :");
+    console.log("\nOpened tasks for this version :");
+    console.log("- WEBAPP is " + backlog_report.opened_tasks.webapp);
+    console.log("- API REST is " + backlog_report.opened_tasks.restapi);
+    console.log("- TESTAPP is " + backlog_report.opened_tasks.testapp);
+    console.log("- MIDDLEWARE is " + backlog_report.opened_tasks.mw);
+
+    console.log("\nClosed tasks for this version :");
+    console.log("- WEBAPP is " + backlog_report.closed_tasks.webapp);
+    console.log("- API REST is " + backlog_report.closed_tasks.restapi);
+    console.log("- TESTAPP is " + backlog_report.closed_tasks.testapp);
+    console.log("- MIDDLEWARE is " + backlog_report.closed_tasks.mw);
+
+    console.log("\n\n------------------------------------");
+    console.log("    FOR ALL SPRINTS AND VERSIONS");
+    console.log("------------------------------------");
+    console.log("\nTotal tasks for :");
     console.log("- WEBAPP is " + backlog_report.total_tasks.webapp);
     console.log("- API REST is " + backlog_report.total_tasks.restapi);
     console.log("- TESTAPP is " + backlog_report.total_tasks.testapp);
     console.log("- MIDDLEWARE is " + backlog_report.total_tasks.mw);
 
-    console.log("Closed for :");
-    console.log("- WEBAPP is " + backlog_report.closed_tasks.webapp);
-    console.log("- API REST is " + backlog_report.closed_tasks.restapi);
-    console.log("- TESTAPP is " + backlog_report.closed_tasks.testapp);
-    console.log("- MIDDLEWARE is " + backlog_report.closed_tasks.mw);
 }
 
 function open_file(filename, downloaded_issues, callback, version) {
-    console.log("Open "+ filename);
     fs.readFile(filename, function (err, data) {
         if (err) {
             console.log("ERROR ");
@@ -213,6 +239,29 @@ function open_file(filename, downloaded_issues, callback, version) {
 }
 
 var issues = {};
+var myArgs = process.argv.slice(2);
+var targeted_version = "";
+var json_file = "";
+var j = 0;
+
+while(j<myArgs.length) {
+    switch (myArgs[j++]) {
+        case '-f':
+            console.log('Open file : ' + myArgs[j]);
+            json_file = myArgs[j++];
+            break;
+        case '-s':
+            console.log('Filter on sprint (or version) : '+ myArgs[j]);
+            targeted_version = myArgs[j++];
+            break;
+        default:
+            console.log('Unknown parameter');
+    }
+}
+
+if( json_file === "" || targeted_version === "" ) {
+    console.log("Please, specify a file to open (-f) and a sprint/version to filter (-s)");
+}
 
 // launch all issues downloading
-open_file("2012-10-26_16h13m07_issues.json", issues, report, "Sprint 2 Lot 1");
+open_file(json_file, issues, report, targeted_version);
